@@ -57,6 +57,9 @@ exports.hook_unrecognized_command = function (next, connection, params) {
                 case 'timestamp':
                     custom_received.timestamp = value
                     break
+                case 'raw':
+                    custom_received.raw = value
+                    break
             }
         }
 
@@ -126,4 +129,66 @@ exports.hook_mail = function (next, connection, params) {
     }
 
     return next()
+}
+
+// ============ 注入自定义 Received 头到邮件最上方 ============
+exports.hook_data_post = function (next, connection) {
+    const transaction = connection.transaction
+    if (!transaction) return next()
+
+    const cr = transaction.notes && transaction.notes.custom_received
+    if (!cr || !Object.keys(cr).length) return next()
+
+    // 支持 RAW 模式: 直接注入完整 Received 值（可含空格/任意畸形字符）
+    let value = cr.raw
+    if (!value) {
+        const rcpt =
+            transaction.rcpt_to && transaction.rcpt_to.length
+                ? transaction.rcpt_to[0].address
+                : 'unknown'
+        const timestamp = cr.timestamp || formatRFC2822(new Date())
+        const from_domain = cr.from_domain || cr.from_host || 'localhost'
+        const from_host = cr.from_host || ''
+        const from_ip = cr.from_ip || '0.0.0.0'
+        const by_host = cr.by_host || 'localhost'
+        const by_info = cr.by_info || 'SMTP'
+        const smtp_id = cr.smtp_id || generateSmtpId()
+
+        value =
+            'from ' + from_domain + ' (' + from_host + ' [' + from_ip + '])' +
+            String.fromCharCode(13, 10) +
+            '\tby ' + by_host + ' (' + by_info + ') with SMTP id ' + smtp_id +
+            String.fromCharCode(13, 10) +
+            '\tfor <' + rcpt + '>; ' + timestamp
+    }
+
+    transaction.add_leading_header('Received', value)
+    this.loginfo('Injected custom Received header at the top of the message')
+    return next()
+}
+
+function generateSmtpId() {
+    const chars = '0123456789ABCDEF'
+    let id = ''
+    for (let i = 0; i < 7; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return id
+}
+
+function formatRFC2822(date) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const day = days[date.getDay()]
+    const dd = String(date.getDate()).padStart(2, '0')
+    const month = months[date.getMonth()]
+    const yyyy = date.getFullYear()
+    const hh = String(date.getHours()).padStart(2, '0')
+    const mm = String(date.getMinutes()).padStart(2, '0')
+    const ss = String(date.getSeconds()).padStart(2, '0')
+    const offset = -date.getTimezoneOffset()
+    const offSign = offset >= 0 ? '+' : '-'
+    const offAbs = Math.abs(offset)
+    const tz = offSign + String(Math.floor(offAbs / 60)).padStart(2, '0') + String(offAbs % 60).padStart(2, '0')
+    return day + ', ' + dd + ' ' + month + ' ' + yyyy + ' ' + hh + ':' + mm + ':' + ss + ' ' + tz
 }

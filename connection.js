@@ -43,7 +43,7 @@ class Connection {
             ip: null,
             port: null,
             host: net_utils.get_primary_host_name(),
-            info: 'Haraka',
+            info: 'Mail',
         }
         this.remote = {
             ip: null,

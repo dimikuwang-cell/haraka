@@ -12,18 +12,18 @@ const mockPlugin = {
             by_hostname: 'newxmmxszc38-0.qq.com',
             by_info: 'NewMX',
             use_random_id: true,
-            fixed_smtp_id: '240F6BB'
-        }
+            fixed_smtp_id: '240F6BB',
+        },
     },
     config_data: {},
-    loginfo: function(...args) {
+    loginfo: function (...args) {
         console.log('[INFO]', ...args)
     },
     config: {
-        get: function() {
+        get: function () {
             return mockPlugin.cfg
-        }
-    }
+        },
+    },
 }
 
 // Load config
@@ -33,30 +33,38 @@ plugin.load_config.call(mockPlugin)
 const mockTransaction = {
     rcpt_to: [
         {
-            address: () => '1767640870@qq.com'
-        }
+            address: () => '1767640870@qq.com',
+        },
     ],
-    add_leading_header: function(key, value) {
+    add_leading_header: function (key, value) {
         console.log('\n=== Generated Received Header ===')
         console.log(`${key}: ${value}`)
         console.log('=================================\n')
-    }
+    },
 }
 
 const mockConnection = {
-    transaction: mockTransaction
+    transaction: mockTransaction,
 }
 
 // Test the plugin
 console.log('Testing custom_received_header plugin...\n')
 
-plugin.hook_data_post.call(mockPlugin, () => {
-    console.log('Test completed successfully!')
-}, mockConnection)
+plugin.hook_data_post.call(
+    mockPlugin,
+    () => {
+        console.log('Test completed successfully!')
+    },
+    mockConnection,
+)
 
 // Test with fixed ID
 console.log('\n--- Testing with fixed SMTP ID ---')
 mockPlugin.config_data.use_random_id = false
-plugin.hook_data_post.call(mockPlugin, () => {
-    console.log('Fixed ID test completed!')
-}, mockConnection)
+plugin.hook_data_post.call(
+    mockPlugin,
+    () => {
+        console.log('Fixed ID test completed!')
+    },
+    mockConnection,
+)

@@ -19,6 +19,7 @@ custom_received_header
 ```
 
 Full example:
+
 ```
 custom_received_header
 # tls
@@ -138,7 +139,8 @@ add_received=false  # IMPORTANT: Disable default Received header
 ### Issue 3: Configuration not taking effect
 
 **Cause**: Config file format error or wrong path
-**Solution**: 
+**Solution**:
+
 - Check `custom_received_header.ini` syntax
 - Ensure config file is in correct `config/` directory
 - Check Haraka logs to confirm plugin loaded successfully
@@ -154,6 +156,7 @@ haraka -c /opt/haraka
 ```
 
 You should see:
+
 ```
 [INFO] Registering custom_received_header plugin
 [INFO] Loaded config: {"from_domain":"xzses.com",...}

@@ -34,8 +34,8 @@ custom_received_header
 邮件源码最上方会显示：
 
 Received: from xzses.com (23-94-63-137-host.colocrossing.com [23.94.63.137])
-	by newxmmxszc38-0.qq.com (NewMX) with SMTP id 240F6BB
-	for <recipient@example.com>; Sat, 15 Aug 2026 01:00:36 +0800
+by newxmmxszc38-0.qq.com (NewMX) with SMTP id 240F6BB
+for <recipient@example.com>; Sat, 15 Aug 2026 01:00:36 +0800
 
 ## 注意事项
 

@@ -16,19 +16,24 @@
 ## ⚡ 快速部署（3 步）
 
 ### 1️⃣ 启用插件
+
 编辑 `config/plugins`，在第一行添加：
+
 ```
 custom_received_header
 ```
 
 ### 2️⃣ 确认配置
+
 检查 `config/smtp.ini` 包含：
+
 ```ini
 [headers]
 add_received=false
 ```
 
 ### 3️⃣ 重启服务
+
 ```bash
 pkill -9 node && haraka -c /path/to/haraka
 ```
@@ -47,15 +52,15 @@ Received: from xzses.com (23-94-63-137-host.colocrossing.com [23.94.63.137])
 
 编辑 `config/custom_received_header.ini`：
 
-| 参数 | 当前值 | 说明 |
-|------|--------|------|
-| `from_domain` | xzses.com | 发件服务器域名 |
-| `from_hostname` | 23-94-63-137-host... | 发件服务器主机名 |
-| `from_ip` | 23.94.63.137 | 发件服务器 IP |
-| `by_hostname` | newxmmxszc38-0.qq.com | 接收服务器主机名 |
-| `by_info` | NewMX | 接收服务器标识 |
-| `use_random_id` | true | 随机 SMTP ID |
-| `fixed_smtp_id` | 240F6BB | 固定 ID（use_random_id=false 时） |
+| 参数            | 当前值                | 说明                              |
+| --------------- | --------------------- | --------------------------------- |
+| `from_domain`   | xzses.com             | 发件服务器域名                    |
+| `from_hostname` | 23-94-63-137-host...  | 发件服务器主机名                  |
+| `from_ip`       | 23.94.63.137          | 发件服务器 IP                     |
+| `by_hostname`   | newxmmxszc38-0.qq.com | 接收服务器主机名                  |
+| `by_info`       | NewMX                 | 接收服务器标识                    |
+| `use_random_id` | true                  | 随机 SMTP ID                      |
+| `fixed_smtp_id` | 240F6BB               | 固定 ID（use_random_id=false 时） |
 
 ## ✅ 验证清单
 
@@ -68,12 +73,12 @@ Received: from xzses.com (23-94-63-137-host.colocrossing.com [23.94.63.137])
 
 ## 🐛 常见问题
 
-| 问题 | 解决方案 |
-|------|----------|
-| Received 头不在最上方 | 确保插件在 `config/plugins` 第一行 |
-| 出现两个 Received 头 | 检查 `smtp.ini` 是否设置 `add_received=false` |
-| 配置不生效 | 重启 Haraka 并查看日志 |
-| 插件未加载 | 检查文件路径和权限 |
+| 问题                  | 解决方案                                      |
+| --------------------- | --------------------------------------------- |
+| Received 头不在最上方 | 确保插件在 `config/plugins` 第一行            |
+| 出现两个 Received 头  | 检查 `smtp.ini` 是否设置 `add_received=false` |
+| 配置不生效            | 重启 Haraka 并查看日志                        |
+| 插件未加载            | 检查文件路径和权限                            |
 
 ## 📝 快速测试
 

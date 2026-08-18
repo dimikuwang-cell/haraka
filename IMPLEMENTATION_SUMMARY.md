@@ -3,6 +3,7 @@
 ## ✅ 已完成的工作
 
 ### 1. 核心插件文件
+
 - ✅ **plugins/custom_received_header.js** (3.6 KB)
   - 实现自定义 Received 头部生成逻辑
   - 支持配置文件热加载
@@ -12,6 +13,7 @@
   - 支持随机或固定 SMTP ID
 
 ### 2. 配置文件
+
 - ✅ **config/custom_received_header.ini**
   - from_domain: xzses.com
   - from_hostname: 23-94-63-137-host.colocrossing.com
@@ -29,6 +31,7 @@
   - 插件加载顺序示例
 
 ### 3. 文档
+
 - ✅ **plugins/custom_received_header.md** - 插件使用说明
 - ✅ **DEPLOYMENT_GUIDE.md** - 完整部署指南
 - ✅ **test_custom_received.js** - 测试脚本
@@ -44,6 +47,7 @@ Received: from xzses.com (23-94-63-137-host.colocrossing.com [23.94.63.137])
 ## 🚀 部署步骤（快速版）
 
 1. **编辑 config/plugins**
+
    ```
    # 在第一行添加
    custom_received_header
@@ -54,6 +58,7 @@ Received: from xzses.com (23-94-63-137-host.colocrossing.com [23.94.63.137])
    - config/custom_received_header.ini (已创建 ✅)
 
 3. **如果需要修改参数**
+
    ```bash
    # 编辑配置文件
    nano config/custom_received_header.ini
@@ -63,7 +68,7 @@ Received: from xzses.com (23-94-63-137-host.colocrossing.com [23.94.63.137])
    ```bash
    # 停止
    pkill -9 node
-   
+
    # 启动
    cd /path/to/haraka
    haraka -c .
@@ -72,12 +77,14 @@ Received: from xzses.com (23-94-63-137-host.colocrossing.com [23.94.63.137])
 ## 🧪 测试方法
 
 ### 方法 1: 使用测试脚本
+
 ```bash
 cd /path/to/Haraka-master
 node test_custom_received.js
 ```
 
 ### 方法 2: 发送真实邮件
+
 ```bash
 telnet localhost 25
 
@@ -112,10 +119,12 @@ Haraka-master/
 ## 🔧 关键配置说明
 
 ### 必须配置项
+
 1. **config/plugins** - 第一行必须是 `custom_received_header`
 2. **config/smtp.ini** - 必须设置 `add_received=false`
 
 ### 可选配置项
+
 - 所有 `custom_received_header.ini` 中的参数都可以根据需要修改
 - 时间戳和收件人地址会自动生成
 

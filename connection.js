@@ -1407,36 +1407,33 @@ class Connection {
         //   for_rcpt: '收件人',
         //   timestamp: '时间戳字符串'
         // }
-        
+
         if (this.transaction && this.transaction.notes && this.transaction.notes.custom_received) {
             const custom = this.transaction.notes.custom_received
-            
+
             // 使用自定义参数构建 Received 头
-            const from_part = custom.from_domain && custom.from_host && custom.from_ip 
-                ? `from ${custom.from_domain} (${custom.from_host} [${custom.from_ip}])`
-                : `from ${this.hello.host} (${this.get_remote('info')})`
-            
-            const by_part = custom.by_host 
+            const from_part =
+                custom.from_domain && custom.from_host && custom.from_ip
+                    ? `from ${custom.from_domain} (${custom.from_host} [${custom.from_ip}])`
+                    : `from ${this.hello.host} (${this.get_remote('info')})`
+
+            const by_part = custom.by_host
                 ? `by ${custom.by_host} (NewMX) with SMTP`
                 : `by ${this.local.host} (${this.local.info}) with ESMTP`
-            
-            const id_part = custom.smtp_id 
-                ? `id ${custom.smtp_id}`
-                : `id ${this.transaction.uuid}`
-            
-            const for_part = custom.for_rcpt 
+
+            const id_part = custom.smtp_id ? `id ${custom.smtp_id}` : `id ${this.transaction.uuid}`
+
+            const for_part = custom.for_rcpt
                 ? `\r\n\tfor <${custom.for_rcpt}>`
-                : (this.transaction.rcpt_to && this.transaction.rcpt_to.length > 0 
-                    ? `\r\n\tfor <${this.transaction.rcpt_to[0].address()}>` 
-                    : '')
-            
-            const timestamp = custom.timestamp 
-                ? custom.timestamp
-                : utils.date_to_str(new Date())
-            
+                : this.transaction.rcpt_to && this.transaction.rcpt_to.length > 0
+                  ? `\r\n\tfor <${this.transaction.rcpt_to[0].address()}>`
+                  : ''
+
+            const timestamp = custom.timestamp ? custom.timestamp : utils.date_to_str(new Date())
+
             return `${from_part}\r\n\t${by_part} ${id_part}${for_part}; ${timestamp}`
         }
-        
+
         // 原始逻辑
         let smtp = this.hello.verb === 'EHLO' ? 'ESMTP' : 'SMTP'
         // Implement RFC3848

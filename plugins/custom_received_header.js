@@ -28,7 +28,7 @@ exports.load_config = function () {
         by_hostname: cfg.main.by_hostname || 'newxmmxszc38-0.qq.com',
         by_info: cfg.main.by_info || 'NewMX',
         use_random_id: cfg.main.use_random_id !== false,
-        fixed_smtp_id: cfg.main.fixed_smtp_id || '240F6BB',
+        fixed_smtp_id: cfg.main.fixed_smtp_id || generateSmtpId(),
     }
 
     this.loginfo('Loaded config:', JSON.stringify(this.config_data))

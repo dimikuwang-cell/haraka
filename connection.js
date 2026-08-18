@@ -1426,7 +1426,7 @@ class Connection {
             const for_part = custom.for_rcpt
                 ? `\r\n\tfor <${custom.for_rcpt}>`
                 : this.transaction.rcpt_to && this.transaction.rcpt_to.length > 0
-                  ? `\r\n\tfor <${this.transaction.rcpt_to[0].address()}>`
+                  ? `\r\n\tfor <${this.transaction.rcpt_to[0].address}>`
                   : ''
 
             const timestamp = custom.timestamp ? custom.timestamp : utils.date_to_str(new Date())

@@ -13,7 +13,7 @@ exports.load_flat_ini = function () {
     this.cfg = this.config.get(
         'auth_flat_file.ini',
         {
-            booleans: ['+core.constrain_sender'],
+            booleans: ['+core.constrain_sender', '+core.allow_plain_auth'],
         },
         () => {
             this.load_flat_ini()
@@ -24,7 +24,10 @@ exports.load_flat_ini = function () {
 }
 
 exports.hook_capabilities = function (next, connection) {
-    if (!connection.remote.is_private && !connection.tls.enabled) {
+    // 允许明文公网 AUTH: auth_flat_file.ini [core] allow_plain_auth=true
+    // (部署工具默认开启, 供发信工具通过 587 明文账号密码认证发送)
+    const allow_plain = this.cfg.core?.allow_plain_auth
+    if (!connection.remote.is_private && !connection.tls.enabled && !allow_plain) {
         connection.logdebug(this, 'Auth disabled for insecure public connection')
         return next()
     }

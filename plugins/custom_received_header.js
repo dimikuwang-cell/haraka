@@ -55,8 +55,7 @@ exports.generateCustomReceivedHeader = function (connection, transaction) {
     const smtp_id = config.use_random_id ? generateSmtpId() : config.fixed_smtp_id
 
     // 获取收件人（如果有多个取第一个）
-    const rcpt_to =
-        transaction.rcpt_to && transaction.rcpt_to.length > 0 ? transaction.rcpt_to[0].address : '<unknown>'
+    const rcpt_to = transaction.rcpt_to && transaction.rcpt_to.length > 0 ? transaction.rcpt_to[0].address : '<unknown>'
 
     // 获取当前时间，格式化为 RFC 2822 格式
     const timestamp = formatRFC2822Date(new Date())

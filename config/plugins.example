@@ -1,0 +1,13 @@
+# Haraka Plugins Configuration
+# 插件加载顺序很重要
+
+# 自定义 Received 头插件（必须在最前面）
+custom_received_header
+
+# 其他核心插件示例
+# tls
+# auth/flat_file
+# rcpt_to.in_host_list
+
+# 队列插件
+# queue/smtp_forward

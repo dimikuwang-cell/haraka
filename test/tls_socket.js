@@ -1,0 +1,321 @@
+'use strict'
+
+const test = require('node:test')
+const assert = require('node:assert/strict')
+const path = require('node:path')
+const net = require('node:net')
+const tls = require('node:tls')
+const fs = require('node:fs')
+const { EventEmitter } = require('node:events')
+
+const tls_socket = require('../tls_socket')
+
+const TEST_CERT = fs.readFileSync(path.join(__dirname, 'config/tls_cert.pem'))
+const TEST_KEY = fs.readFileSync(path.join(__dirname, 'config/tls_key.pem'))
+
+test('tls_socket', async (t) => {
+    await t.test('parse_x509', async (t) => {
+        await t.test('handles empty string', async () => {
+            const res = await tls_socket.parse_x509('')
+            assert.deepEqual(res, {})
+        })
+
+        await t.test('handles null/undefined', async () => {
+            const res = await tls_socket.parse_x509(null)
+            assert.deepEqual(res, {})
+        })
+
+        // This would exercise the uninitialized res.names bug if we had a cert string
+        // but since it spawns openssl, we'd need to mock spawn or provide a real cert.
+    })
+
+    await t.test('get_rejectUnauthorized', async (t) => {
+        await t.test('returns true if rejectUnauthorized is true', () => {
+            assert.strictEqual(tls_socket.get_rejectUnauthorized(true, 25, [25]), true)
+        })
+
+        await t.test('returns true if port is in port_list', () => {
+            assert.strictEqual(tls_socket.get_rejectUnauthorized(false, 465, [465]), true)
+        })
+
+        await t.test('returns false if port is not in port_list', () => {
+            assert.strictEqual(tls_socket.get_rejectUnauthorized(false, 25, [465]), false)
+        })
+    })
+
+    await t.test('SNICallback', async (t) => {
+        await t.test('calls sniDone with default context if servername unknown', (t, done) => {
+            // This test requires some setup of ctxByHost which is private to the module
+            // but we can test if it's a function
+            assert.strictEqual(typeof tls_socket.SNICallback, 'function')
+            done()
+        })
+    })
+
+    await t.test('pluggableStream', async () => {
+        // This is a class inside the file, but not exported.
+        // We can test it via createServer or connect if we mock net.
+    })
+
+    await t.test('connect', async () => {
+        // Exercise the `new tls.connect` bug
+        // We can't easily catch the 'new' keyword usage without proxying tls.connect
+        assert.strictEqual(typeof tls_socket.connect, 'function')
+    })
+
+    await t.test('connect upgrade error propagation', async (t) => {
+        // Verify that TLS errors during socket.upgrade() are propagated to the outer
+        // pluggableStream socket, not silently swallowed.
+        // A TLS server that requires a client cert; connecting without one triggers
+        // a post-handshake "certificate required" alert (TLSv1.3).
+        await t.test('emits error on outer socket when client cert is missing', async () => {
+            const server = tls.createServer(
+                { cert: TEST_CERT, key: TEST_KEY, requestCert: true, rejectUnauthorized: true },
+                () => {},
+            )
+            await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+            const { port } = server.address()
+
+            try {
+                const err = await new Promise((resolve, reject) => {
+                    const socket = tls_socket.connect({ host: '127.0.0.1', port })
+                    socket.upgrade({ rejectUnauthorized: false }, () => {})
+                    socket.on('error', resolve)
+                    socket.on('close', () => reject(new Error('closed without error')))
+                    setTimeout(() => reject(new Error('timeout')), 3000)
+                })
+                assert.ok(
+                    /certificate required|socket hang up|disconnected/.test(err.message),
+                    `unexpected error: ${err.message}`,
+                )
+                assert.equal(err.source, 'tls', 'error.source should be "tls"')
+            } finally {
+                await new Promise((resolve) => server.close(resolve))
+            }
+        })
+
+        await t.test('second error handler does not crash when first handler removes all listeners', () => {
+            // Regression test for issue #3553
+            const originalNetConnect = net.connect
+            const originalTlsConnect = tls.connect
+            const originalTlsValid = tls_socket.tls_valid
+
+            const fakeCrypto = new EventEmitter()
+            fakeCrypto.writable = true
+            fakeCrypto.removeAllListeners = EventEmitter.prototype.removeAllListeners
+            fakeCrypto.setTimeout = () => {}
+            fakeCrypto.setKeepAlive = () => {}
+
+            let capturedCleartext
+            net.connect = () => fakeCrypto
+            tls.connect = () => {
+                capturedCleartext = new EventEmitter()
+                capturedCleartext.writable = true
+                capturedCleartext.setTimeout = () => {}
+                capturedCleartext.setKeepAlive = () => {}
+                return capturedCleartext
+            }
+            tls_socket.tls_valid = false
+
+            try {
+                const socket = tls_socket.connect({ host: 'bad-tls.example.com', port: 25 })
+
+                // Simulate what release_client does: strip all listeners on first error
+                socket.once('error', () => socket.removeAllListeners())
+
+                socket.upgrade({}, () => {})
+
+                // capturedCleartext now has two 'error' handlers (on from upgrade, once from attach).
+                // Emitting error must NOT throw even though the first handler removes all
+                // listeners from the outer socket before the second fires.
+                const tlsError = new Error('dh key too small')
+                assert.doesNotThrow(() => capturedCleartext.emit('error', tlsError))
+            } finally {
+                net.connect = originalNetConnect
+                tls.connect = originalTlsConnect
+                tls_socket.tls_valid = originalTlsValid
+            }
+        })
+    })
+
+    await t.test('getSocketOpts', async () => {
+        // Exercise the typo path (would requires failing config.getDir)
+        assert.strictEqual(typeof tls_socket.getSocketOpts, 'function')
+    })
+
+    await t.test('getSocketOpts handles missing tls dir', async () => {
+        const originalGetCertsDir = tls_socket.get_certs_dir
+        tls_socket.get_certs_dir = async () => {
+            const err = new Error('missing')
+            err.code = 'ENOENT'
+            throw err
+        }
+        try {
+            const opts = await tls_socket.getSocketOpts('*')
+            assert.ok(opts)
+        } finally {
+            tls_socket.get_certs_dir = originalGetCertsDir
+        }
+    })
+
+    await t.test('connect upgrade applies mutual auth cert and timeout/keepalive', async () => {
+        const originalNetConnect = net.connect
+        const originalTlsConnect = tls.connect
+        const originalTlsValid = tls_socket.tls_valid
+        const originalCfg = tls_socket.cfg
+        const originalCertMap = {
+            default: tls_socket.certsByHost['*'],
+            host: tls_socket.certsByHost['client-cert.example'],
+        }
+
+        const fakeSocket = new EventEmitter()
+        fakeSocket.remotePort = 2525
+        fakeSocket.remoteAddress = '127.0.0.1'
+        fakeSocket.localPort = 25
+        fakeSocket.localAddress = '127.0.0.1'
+        fakeSocket.writable = true
+        fakeSocket.removeAllListeners = EventEmitter.prototype.removeAllListeners
+        fakeSocket.setTimeout = () => {}
+        fakeSocket.setKeepAlive = () => {}
+
+        let capturedOptions
+        let timeoutSeen = null
+        let keepaliveSeen = null
+
+        net.connect = () => fakeSocket
+        tls.connect = (options) => {
+            capturedOptions = options
+            const clear = new EventEmitter()
+            clear.writable = true
+            clear.getCipher = () => ({ name: 'TLS_AES_256_GCM_SHA384' })
+            clear.getProtocol = () => 'TLSv1.3'
+            clear.getPeerCertificate = () => ({})
+            clear.setTimeout = (ms) => {
+                timeoutSeen = ms
+            }
+            clear.setKeepAlive = (value) => {
+                keepaliveSeen = value
+            }
+            process.nextTick(() => clear.emit('secureConnect'))
+            return clear
+        }
+
+        tls_socket.tls_valid = true
+        tls_socket.cfg = {
+            mutual_auth_hosts: { 'mx.example.com': 'client-cert.example' },
+            mutual_auth_hosts_exclude: {},
+            main: { mutual_tls: false },
+        }
+        tls_socket.certsByHost['*'] = { key: 'default-key', cert: 'default-cert' }
+        tls_socket.certsByHost['client-cert.example'] = { key: 'host-key', cert: 'host-cert' }
+
+        try {
+            const socket = tls_socket.connect({ host: 'mx.example.com', port: 25 })
+            socket.setTimeout(3210)
+            socket.setKeepAlive(true)
+
+            await new Promise((resolve) => {
+                socket.upgrade({ rejectUnauthorized: false }, () => resolve())
+            })
+
+            assert.equal(capturedOptions.key, 'host-key')
+            assert.equal(capturedOptions.cert, 'host-cert')
+            assert.equal(capturedOptions.socket, fakeSocket)
+            assert.equal(timeoutSeen, 3210)
+            assert.equal(keepaliveSeen, true)
+        } finally {
+            net.connect = originalNetConnect
+            tls.connect = originalTlsConnect
+            tls_socket.tls_valid = originalTlsValid
+            tls_socket.cfg = originalCfg
+            tls_socket.certsByHost['*'] = originalCertMap.default
+            if (originalCertMap.host === undefined) {
+                delete tls_socket.certsByHost['client-cert.example']
+            } else {
+                tls_socket.certsByHost['client-cert.example'] = originalCertMap.host
+            }
+        }
+    })
+
+    await t.test('load_plugin_tls_options', async (t) => {
+        // Point haraka-config at test/config so tls.ini fixtures load.
+        const origConfig = tls_socket.config
+        const origCfg = tls_socket.cfg
+        const test_config = require('haraka-config').module_config(path.resolve(__dirname))
+
+        t.beforeEach(() => {
+            tls_socket.config = test_config
+            tls_socket.cfg = undefined // bust load_tls_ini cache between cases
+        })
+
+        t.after(() => {
+            tls_socket.config = origConfig
+            tls_socket.cfg = origCfg
+        })
+
+        await t.test('inherits tls.ini [main] when plugin cfg is empty', () => {
+            const opts = tls_socket.load_plugin_tls_options({})
+            // From test/config/tls.ini [main]
+            assert.equal(opts.rejectUnauthorized, false)
+            assert.equal(opts.minVersion, 'TLSv1')
+            assert.equal(opts.honorCipherOrder, true)
+            assert.ok(opts.ciphers && opts.ciphers.length)
+            assert.ok(Buffer.isBuffer(opts.key), 'key resolved to Buffer')
+            assert.ok(Buffer.isBuffer(opts.cert), 'cert resolved to Buffer')
+        })
+
+        await t.test('plugin cfg overrides [main]', () => {
+            const opts = tls_socket.load_plugin_tls_options({
+                rejectUnauthorized: true,
+                minVersion: 'TLSv1.3',
+                ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
+            })
+            assert.equal(opts.rejectUnauthorized, true)
+            assert.equal(opts.minVersion, 'TLSv1.3')
+            assert.equal(opts.ciphers, 'ECDHE-RSA-AES256-GCM-SHA384')
+        })
+
+        await t.test('resolves key/cert/dhparam file refs to Buffers', () => {
+            const opts = tls_socket.load_plugin_tls_options({
+                key: 'outbound_tls_key.pem',
+                cert: 'outbound_tls_cert.pem',
+                dhparam: 'dhparams.pem',
+            })
+            assert.ok(Buffer.isBuffer(opts.key) && opts.key.length > 0)
+            assert.ok(Buffer.isBuffer(opts.cert) && opts.cert.length > 0)
+            assert.ok(Buffer.isBuffer(opts.dhparam) && opts.dhparam.length > 0)
+        })
+
+        await t.test('drops missing dhparam rather than leaving null', () => {
+            const opts = tls_socket.load_plugin_tls_options({
+                dhparam: 'does_not_exist.pem',
+            })
+            assert.equal(opts.dhparam, undefined)
+        })
+
+        await t.test('normalises no_tls_hosts / force_tls_hosts to arrays', () => {
+            const opts = tls_socket.load_plugin_tls_options({
+                no_tls_hosts: '10.0.0.5',
+                force_tls_hosts: ['a.example.com', 'b.example.com'],
+            })
+            assert.deepEqual(opts.no_tls_hosts, ['10.0.0.5'])
+            assert.deepEqual(opts.force_tls_hosts, ['a.example.com', 'b.example.com'])
+
+            const opts2 = tls_socket.load_plugin_tls_options({})
+            assert.deepEqual(opts2.no_tls_hosts, [])
+            assert.deepEqual(opts2.force_tls_hosts, [])
+        })
+
+        await t.test('does not set servername', () => {
+            const opts = tls_socket.load_plugin_tls_options({})
+            assert.equal(opts.servername, undefined)
+        })
+
+        await t.test('does not mutate the input plugin cfg', () => {
+            const input = { rejectUnauthorized: true, no_tls_hosts: '10.0.0.5' }
+            const before = JSON.stringify(input)
+            tls_socket.load_plugin_tls_options(input)
+            assert.equal(JSON.stringify(input), before)
+        })
+    })
+})

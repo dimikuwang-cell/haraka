@@ -31,6 +31,7 @@ const cfg = config.get('connection.ini', {
         '+headers.add_received',
         '+headers.show_version',
         '+headers.clean_auth_results',
+        '+headers.add_auth_results',
     ],
 })
 
@@ -1670,7 +1671,7 @@ class Connection {
             msg: msg || '',
         })
         const ar_field = this.auth_results() // assemble A-R header
-        if (ar_field) {
+        if (ar_field && cfg.headers.add_auth_results) {
             this.transaction.remove_header('Authentication-Results')
             this.transaction.add_leading_header('Authentication-Results', ar_field)
         }

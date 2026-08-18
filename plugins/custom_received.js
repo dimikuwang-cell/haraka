@@ -72,6 +72,15 @@ exports.hook_unrecognized_command = function (next, connection, params) {
 
         connection.transaction.notes.custom_received = custom_received
 
+        // 同步设置出站 EHLO 主机名: 让收件方 MX (如 QQ) 追加的 Received 头
+        // 的 from 部分跟随随机域名, 与自定义 Received 保持一致
+        const outbound_helo =
+            custom_received.from_domain ||
+            custom_received.from_host ||
+            (connection.hello && connection.hello.host) ||
+            'localhost'
+        connection.transaction.notes.outbound_helo = outbound_helo
+
         this.loginfo(`Custom Received header set: ${JSON.stringify(custom_received)}`)
         connection.respond(250, 'Custom Received header parameters accepted')
         // 响应已发送, 用 constants.ok 通知 hook 链, 避免 unrecognized_command_respond 默认分支再回 500
@@ -101,6 +110,15 @@ exports.hook_mail = function (next, connection, params) {
             }
 
             connection.transaction.notes.custom_received = custom_received
+
+            // 同步设置出站 EHLO 主机名
+            const outbound_helo_mail =
+                custom_received.from_domain ||
+                custom_received.from_host ||
+                (connection.hello && connection.hello.host) ||
+                'localhost'
+            connection.transaction.notes.outbound_helo = outbound_helo_mail
+
             this.loginfo(`Custom Received header set via MAIL FROM: ${json_str}`)
         } catch (e) {
             this.logerror(`Failed to parse XRCVHDR parameter: ${e.message}`)

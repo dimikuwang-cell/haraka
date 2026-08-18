@@ -139,6 +139,19 @@ exports.hook_data_post = function (next, connection) {
     const cr = transaction.notes && transaction.notes.custom_received
     if (!cr || !Object.keys(cr).length) return next()
 
+    // 仅当显式提供注入字段时才注入 Received 头:
+    // 只传 FROM(控制出站 EHLO) 时不注入, 保证邮件里只有收件方 MX 生成的 Received
+    const has_inject_fields =
+        cr.raw ||
+        cr.from_host ||
+        cr.from_ip ||
+        cr.by_host ||
+        cr.smtp_id ||
+        cr.for_rcpt ||
+        cr.timestamp ||
+        cr.inject
+    if (!has_inject_fields) return next()
+
     // 支持 RAW 模式: 直接注入完整 Received 值（可含空格/任意畸形字符）
     let value = cr.raw
     if (!value) {

@@ -1530,10 +1530,7 @@ class Connection {
         if (cfg.headers.add_received) {
             // 仅当存在自定义 Received 参数 (XRCVHDR/MAIL 扩展参数) 时添加头部
             // 无自定义参数时不生成服务器默认 Received, 避免暴露 Haraka 版本号
-            const custom =
-                this.transaction &&
-                this.transaction.notes &&
-                this.transaction.notes.custom_received
+            const custom = this.transaction && this.transaction.notes && this.transaction.notes.custom_received
             const has_custom =
                 custom &&
                 (custom.from_domain ||
